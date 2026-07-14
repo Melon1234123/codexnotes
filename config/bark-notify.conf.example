@@ -1,0 +1,8 @@
+# The Bark device URL is intentionally blank in Git.
+BARK_BASE_URL=
+BARK_TITLE=codex叫你干活啦
+BARK_ICON=https://wsrv.nl/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fyuriipalam%2Fcodex-status-bar%2Fmain%2FSources%2FCodexBar%2FResources%2FcodexColorful.svg&output=png&fit=contain&w=512&h=512
+BARK_SOUND=minuet
+BARK_TIMEOUT=8
+PREVIOUS_NOTIFY_JSON=
+PREVIOUS_NOTIFY_TIMEOUT=10
