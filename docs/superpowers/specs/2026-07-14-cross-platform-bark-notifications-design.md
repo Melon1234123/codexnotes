@@ -14,7 +14,7 @@ The installer writes only to the selected Codex home directory: `CODEX_HOME` whe
 
 The implementation requires Python 3.9 or newer and uses only the standard library. Humans run `python3` on macOS and `py -3` or `python` on Windows. The installer uses `sys.executable` in the generated Codex command, so paths with spaces and Windows backslashes are encoded correctly.
 
-Codex's legacy notification payload does not expose a direct subagent flag. Before sending Bark, the notifier resolves the payload's `thread-id` to the matching rollout `session_meta` under `CODEX_HOME` and suppresses records whose `thread_source` is `subagent`. If that metadata is unavailable, `CODEX_THREAD_ID` is used as a fallback comparison. Unknown records remain eligible so missing or cleaned-up metadata cannot silently disable normal task notifications. Existing desktop or arbitrary notifiers still receive the original event once.
+Codex's legacy notification payload does not identify internal work directly. Before sending Bark, the notifier resolves the payload's `thread-id` to the matching rollout `session_meta` under `CODEX_HOME` and permits only confirmed user threads. Subagents, internal classifiers, and unknown records without rollout metadata are suppressed. The verifier uses an explicit local test marker for opt-in test delivery. Existing desktop or arbitrary notifiers still receive the original event once.
 
 The installer supports three existing states:
 
@@ -45,6 +45,7 @@ The repository must not contain the current Bark key, a complete `api.day.app` d
 
 - Send exactly one Bark push for `agent-turn-complete`.
 - Send no Bark push for thread-spawned subagent completions.
+- Send no Bark push for Codex internal classifiers or unknown threads without user metadata.
 - Send no Bark push for submission, approval, waiting, or unknown events.
 - Keep the title `codex叫你干活啦`.
 - Include the project directory and final assistant message, truncated to 220 characters.

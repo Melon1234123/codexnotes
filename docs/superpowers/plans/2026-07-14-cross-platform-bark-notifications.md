@@ -32,7 +32,7 @@
 
 - [ ] Write tests asserting one Bark call for root `agent-turn-complete`, zero calls for `approval-requested` and subagent completion, correct macOS/Windows project names, a 220-character summary limit, encoded icon and `minuet`, and previous-notifier dispatch exactly once.
 - [ ] Run `python3 -m unittest tests.test_bark_notify -v`; expect failures because `src.bark_notify` does not exist.
-- [ ] Implement the notifier with Python standard-library modules only; resolve `thread-id` against rollout `session_meta`, fall back to `CODEX_THREAD_ID`, and do not add third-party dependencies.
+- [ ] Implement the notifier with Python standard-library modules only; resolve `thread-id` against rollout `session_meta`, permit only confirmed user threads, and do not add third-party dependencies.
 - [ ] Re-run `python3 -m unittest tests.test_bark_notify -v`; expect all notifier tests to pass.
 
 ### Task 2: Idempotent installation and rollback

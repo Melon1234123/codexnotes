@@ -28,6 +28,7 @@ class BarkNotifyTests(unittest.TestCase):
         payload = json.dumps(self.completion, ensure_ascii=False)
         with (
             mock.patch.object(bark_notify, "read_config", return_value=self.config),
+            mock.patch.object(bark_notify, "is_user_task", return_value=True),
             mock.patch.object(bark_notify, "send_bark") as send_bark,
             mock.patch.object(bark_notify, "run_previous_notifier") as run_previous,
         ):
@@ -55,7 +56,7 @@ class BarkNotifyTests(unittest.TestCase):
         payload = json.dumps(self.completion, ensure_ascii=False)
         with (
             mock.patch.object(bark_notify, "read_config", return_value=self.config),
-            mock.patch.object(bark_notify, "is_subagent", return_value=True),
+            mock.patch.object(bark_notify, "is_user_task", return_value=False),
             mock.patch.object(bark_notify, "send_bark") as send_bark,
             mock.patch.object(bark_notify, "run_previous_notifier") as run_previous,
         ):
@@ -98,32 +99,63 @@ class BarkNotifyTests(unittest.TestCase):
                 json.dumps(root_meta) + "\n", encoding="utf-8"
             )
 
-            self.assertTrue(
-                bark_notify.is_subagent(
-                    {"thread-id": child_id}, home=home, environment={}
+            self.assertFalse(
+                bark_notify.is_user_task(
+                    {"thread-id": child_id}, home=home
                 )
             )
-            self.assertFalse(
-                bark_notify.is_subagent(
-                    {"thread-id": root_id}, home=home, environment={}
+            self.assertTrue(
+                bark_notify.is_user_task(
+                    {"thread-id": root_id}, home=home
                 )
             )
 
-    def test_thread_environment_is_a_fallback_for_missing_metadata(self):
+    def test_missing_metadata_is_not_whitelisted(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             home = Path(temporary_directory)
-            self.assertTrue(
-                bark_notify.is_subagent(
+            self.assertFalse(
+                bark_notify.is_user_task(
                     {"thread-id": "child-thread"},
                     home=home,
-                    environment={"CODEX_THREAD_ID": "root-thread"},
                 )
             )
             self.assertFalse(
-                bark_notify.is_subagent(
+                bark_notify.is_user_task(
                     {"thread-id": "root-thread"},
                     home=home,
-                    environment={"CODEX_THREAD_ID": "root-thread"},
+                )
+            )
+
+    def test_internal_ambient_classifier_completion_does_not_send_bark(self):
+        notification = {
+            "type": "agent-turn-complete",
+            "thread-id": "019f6459-0c04-71c3-a44a-ae961b32cac3",
+            "cwd": "/",
+            "last-assistant-message": '{"exclude":[]}',
+        }
+        payload = json.dumps(notification)
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            with (
+                mock.patch.object(bark_notify, "codex_home", return_value=Path(temporary_directory)),
+                mock.patch.dict(bark_notify.os.environ, {}, clear=True),
+                mock.patch.object(bark_notify, "read_config", return_value=self.config),
+                mock.patch.object(bark_notify, "send_bark") as send_bark,
+                mock.patch.object(bark_notify, "run_previous_notifier") as run_previous,
+            ):
+                self.assertEqual(bark_notify.main([payload]), 0)
+
+        send_bark.assert_not_called()
+        run_previous.assert_called_once_with(self.config, payload)
+
+    def test_explicit_verification_payload_is_allowed(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            self.assertTrue(
+                bark_notify.is_user_task(
+                    {
+                        "type": "agent-turn-complete",
+                        "codexnotes-test": True,
+                    },
+                    home=Path(temporary_directory),
                 )
             )
 

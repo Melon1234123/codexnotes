@@ -435,7 +435,10 @@ def _validate_bark_url(value: str) -> str:
 
 
 def install(
-    codex_home: Path, bark_base_url: str, python_executable: str
+    codex_home: Path,
+    bark_base_url: str,
+    python_executable: str,
+    repair: bool = False,
 ) -> InstallResult:
     codex_home = Path(codex_home).expanduser()
     bark_base_url = _validate_bark_url(bark_base_url)
@@ -457,7 +460,10 @@ def install(
 
     if state_path.exists():
         state = _read_state(state_path)
-        if not current.present or current.command != state.get("installed_notify"):
+        notify_changed = (
+            not current.present or current.command != state.get("installed_notify")
+        )
+        if notify_changed and not repair:
             raise RuntimeError("notify changed since installation; refusing to overwrite it")
         original_present = bool(state.get("original_notify_present"))
         original_notify = state.get("original_notify")
@@ -465,7 +471,7 @@ def install(
         original_config_existed = bool(state.get("original_config_existed"))
         backup_raw = state.get("backup_path")
         backup_path = Path(backup_raw) if backup_raw else None
-        action = "already-installed"
+        action = "repaired" if notify_changed else "already-installed"
     else:
         original_config_existed = config_existed
         backup_path = _backup_config(config_path)
@@ -518,10 +524,12 @@ def install(
         json.dumps(state, ensure_ascii=False, indent=2) + "\n",
         0o600,
     )
-    message = "Bark notifications {} in {}".format(
-        "already configured" if action == "already-installed" else "installed",
-        codex_home,
-    )
+    action_message = {
+        "already-installed": "already configured",
+        "repaired": "repaired",
+        "installed": "installed",
+    }[action]
+    message = "Bark notifications {} in {}".format(action_message, codex_home)
     return InstallResult(action, codex_home, backup_path, installed_notify, message)
 
 
@@ -529,6 +537,11 @@ def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--codex-home", help="Codex home (default: CODEX_HOME or ~/.codex)")
     parser.add_argument("--bark-base-url", help="Bark device URL; omitted value is read securely")
+    parser.add_argument(
+        "--repair",
+        action="store_true",
+        help="restore the recorded notify chain after an external config change",
+    )
     parser.add_argument(
         "--python-executable",
         default=sys.executable,
@@ -555,6 +568,7 @@ def main() -> int:
             codex_home,
             bark_base_url,
             arguments.python_executable,
+            repair=arguments.repair,
         )
     except (OSError, RuntimeError, ValueError) as error:
         print("Install failed: {}".format(error), file=sys.stderr)

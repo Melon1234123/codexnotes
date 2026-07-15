@@ -9,9 +9,10 @@ This repository installs one user-level Codex `notify` integration that sends ro
 - Use Python 3.9+ and standard-library modules only.
 - Install only under the selected `CODEX_HOME`; resolution order is `--codex-home`, `CODEX_HOME`, then `~/.codex`.
 - Send Bark exactly once for a root `agent-turn-complete` event.
-- Do not send Bark for subagent, submission, approval, waiting, or unknown events.
+- Do not send Bark for subagent, internal classifier, submission, approval, waiting, or unknown events.
 - Preserve an existing notifier exactly once. Keep native `SkyComputerUseClient turn-ended` as the outer notifier.
 - Repeated installation must be idempotent.
+- External notify changes must fail closed unless the human explicitly authorizes `install.py --repair`.
 - `verify.py` must remain offline unless the human explicitly requests `--send-test`.
 - Do not print the Bark URL in output, errors, tests, or logs.
 
@@ -82,7 +83,7 @@ py -3 uninstall.py
 - `config/bark-notify.conf.example`: secret-free defaults for title, icon, sound, and timeouts.
 - `tests/`: unit and temporary-home integration coverage.
 
-The legacy Codex notify payload has no direct subagent boolean. The notifier resolves `thread-id` against the matching rollout `session_meta` under `CODEX_HOME`; `thread_source: "subagent"` suppresses Bark. `CODEX_THREAD_ID` is only a fallback when metadata cannot be found. Existing desktop/arbitrary notifiers still receive the original event once.
+The legacy Codex notify payload does not directly identify internal work. The notifier resolves `thread-id` against the matching rollout `session_meta` under `CODEX_HOME` and allows only confirmed user threads. Missing metadata fails closed because Codex ambient-suggestion classifiers can emit `agent-turn-complete` from `cwd=/` without a rollout. Existing desktop/arbitrary notifiers still receive the original event once. `verify.py --send-test` uses the dedicated `codexnotes-test` marker.
 
 ## Required validation
 

@@ -37,6 +37,7 @@ class VerifyTests(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertEqual(command[:2], ["/usr/bin/python3", str(self.home / "bark-notify.py")])
         self.assertIn('"type": "agent-turn-complete"', command[-1])
+        self.assertIn('"codexnotes-test": true', command[-1])
 
     def test_blank_private_url_fails_without_sending(self):
         private_path = self.home / "bark-notify.conf"

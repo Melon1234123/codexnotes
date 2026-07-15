@@ -7,7 +7,7 @@
 - 主任务完成时推送一次，标题为 `codex叫你干活啦`。
 - 通知内容包含项目目录和最终回复摘要。
 - 使用 Codex 彩色图标和 Bark 的 `minuet` 轻提示音。
-- 点击发送、等待输入、审批以及子 agent 完成时都不推送。
+- 点击发送、等待输入、审批、子 agent 完成以及 Codex 内部分类任务都不推送。
 - Bark 失败不会让已经完成的 Codex 任务报错。
 - Codex 原有的桌面通知器或其他通知脚本会被保留，且只调用一次。
 
@@ -141,7 +141,9 @@ py -3 verify.py --codex-home "D:\Codex Data\.codex"
 - 验证通过但没有声音：检查静音模式、专注模式和 Bark 的“允许声音”；这不是电脑端安装失败。
 - 图标没有立即更新：iOS/Bark 可能缓存远程图标，稍后再看或重启 Bark。
 - 出现重复通知：再次运行 `install.py`，然后运行 `verify.py`；验证器要求通知链中只能有一个 Bark 命令。
+- 安装器提示 `notify changed since installation`：确认需要恢复 Bark 后运行 `python3 install.py --repair`；Windows 使用 `py -3 install.py --repair`。
 - 子 agent 仍然通知：确认 `verify.py` 报告安装脚本与仓库版本一致，并完全重启 Codex。
+- 收到项目为 `/`、内容为短 JSON 的通知：这是旧版放行的内部任务；更新仓库、重新运行 `install.py` 并完全重启 Codex。
 - Bark 发送失败：查看 `~/.codex/bark-notify.log`。日志只记录错误类型，不记录 Bark URL。
 - 卸载提示 `notify changed since installation`：先检查 `~/.codex/config.toml`，不要删除状态文件后强行覆盖。
 

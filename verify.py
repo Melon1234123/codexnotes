@@ -134,6 +134,7 @@ def verify(codex_home: Path, send_test: bool = False) -> VerificationResult:
         payload = json.dumps(
             {
                 "type": "agent-turn-complete",
+                "codexnotes-test": True,
                 "cwd": str(Path.cwd()),
                 "last-assistant-message": "Bark 跨平台通知测试成功。",
             },

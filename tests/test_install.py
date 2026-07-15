@@ -224,6 +224,25 @@ class InstallTests(unittest.TestCase):
 
         self.assertTrue((self.home / "bark-notify-install-state.json").exists())
 
+    def test_explicit_repair_restores_a_changed_notify_chain(self):
+        first = self.install()
+        config_path = self.home / "config.toml"
+        config_path.write_text('model = "gpt-5.6"\n', encoding="utf-8")
+
+        with self.assertRaisesRegex(RuntimeError, "changed since installation"):
+            self.install()
+
+        repaired = install.install(
+            self.home,
+            TEST_BARK_URL,
+            self.python,
+            repair=True,
+        )
+
+        self.assertEqual(repaired.action, "repaired")
+        self.assertEqual(self.read_notify(), first.notify)
+        self.assertEqual(self.read_notify().count("--previous-notify"), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

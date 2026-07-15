@@ -9,13 +9,14 @@ import re
 import subprocess
 import sys
 from pathlib import Path, PureWindowsPath
-from typing import Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.error import URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 
 EVENT_TYPE = "agent-turn-complete"
+USER_THREAD_SOURCES = {"cli", "vscode", "exec", "mcp", "custom", "unknown"}
 DEFAULT_TITLE = "codex叫你干活啦"
 DEFAULT_ICON = (
     "https://wsrv.nl/?url=https%3A%2F%2Fraw.githubusercontent.com%2F"
@@ -91,26 +92,25 @@ def _session_metadata(home: Path, thread_id: str) -> Optional[dict]:
     return None
 
 
-def is_subagent(
+def is_user_task(
     notification: dict,
     home: Optional[Path] = None,
-    environment: Optional[Mapping[str, str]] = None,
 ) -> bool:
+    if notification.get("codexnotes-test") is True:
+        return True
+
     thread_id = str(notification.get("thread-id") or "").strip()
     if not thread_id:
         return False
-
     metadata = _session_metadata(home or codex_home(), thread_id)
-    if metadata is not None:
-        source = metadata.get("source")
-        return metadata.get("thread_source") == "subagent" or (
-            isinstance(source, dict) and "subagent" in source
-        )
+    if metadata is None:
+        return False
 
-    active_thread_id = (environment if environment is not None else os.environ).get(
-        "CODEX_THREAD_ID", ""
-    )
-    return bool(active_thread_id and active_thread_id != thread_id)
+    thread_source = str(metadata.get("thread_source") or "").strip().lower()
+    if thread_source:
+        return thread_source == "user"
+    source = metadata.get("source")
+    return isinstance(source, str) and source.strip().lower() in USER_THREAD_SOURCES
 
 
 def compact(text: str, limit: int = 220) -> str:
@@ -226,7 +226,7 @@ def main(arguments: List[str]) -> int:
         config = read_config()
         if (
             notification.get("type") == EVENT_TYPE
-            and not is_subagent(notification)
+            and is_user_task(notification)
             and config.get("BARK_BASE_URL")
         ):
             title, body = build_message(notification, config)
