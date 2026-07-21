@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from http.client import IncompleteRead
 from pathlib import Path
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
@@ -58,6 +59,7 @@ class BarkNotifyTests(unittest.TestCase):
         )
         with mock.patch.object(bark_notify, "urlopen", return_value=response):
             self.assertTrue(bark_notify.send_bark(self.config, "title", "body"))
+        response.__enter__.return_value.read.assert_called_once_with(65537)
 
     def test_explicit_test_delivery_failure_returns_nonzero(self):
         notification = dict(self.completion, **{"codexnotes-test": True})
@@ -79,6 +81,39 @@ class BarkNotifyTests(unittest.TestCase):
             mock.patch.object(bark_notify, "run_previous_notifier"),
         ):
             self.assertEqual(bark_notify.main([payload]), 0)
+
+    def test_truncated_response_is_nonfatal_for_regular_delivery(self):
+        payload = json.dumps(self.completion, ensure_ascii=False)
+        response = mock.MagicMock()
+        response.__enter__.return_value.read.side_effect = IncompleteRead(
+            b'{"code":', 10
+        )
+        with (
+            mock.patch.object(bark_notify, "read_config", return_value=self.config),
+            mock.patch.object(bark_notify, "is_user_task", return_value=True),
+            mock.patch.object(bark_notify, "urlopen", return_value=response),
+            mock.patch.object(bark_notify, "log_error") as log_error,
+            mock.patch.object(bark_notify, "run_previous_notifier"),
+        ):
+            self.assertEqual(bark_notify.main([payload]), 0)
+
+        log_error.assert_called_once_with("Bark delivery failed: IncompleteRead")
+
+    def test_truncated_response_fails_explicit_test(self):
+        notification = dict(self.completion, **{"codexnotes-test": True})
+        payload = json.dumps(notification, ensure_ascii=False)
+        response = mock.MagicMock()
+        response.__enter__.return_value.read.side_effect = IncompleteRead(
+            b'{"code":', 10
+        )
+        with (
+            mock.patch.object(bark_notify, "read_config", return_value=self.config),
+            mock.patch.object(bark_notify, "is_user_task", return_value=True),
+            mock.patch.object(bark_notify, "urlopen", return_value=response),
+            mock.patch.object(bark_notify, "log_error"),
+            mock.patch.object(bark_notify, "run_previous_notifier"),
+        ):
+            self.assertEqual(bark_notify.main([payload]), 1)
 
     def test_non_completion_does_not_send_bark(self):
         payload = json.dumps(

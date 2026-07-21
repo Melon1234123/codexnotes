@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+from http.client import HTTPException
 from pathlib import Path, PureWindowsPath
 from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.error import URLError
@@ -16,6 +17,7 @@ from urllib.request import Request, urlopen
 
 
 EVENT_TYPE = "agent-turn-complete"
+MAX_BARK_RESPONSE_BYTES = 64 * 1024
 USER_THREAD_SOURCES = {"cli", "vscode", "exec", "mcp", "custom", "unknown"}
 DEFAULT_TITLE = "codex叫你干活啦"
 DEFAULT_ICON = (
@@ -172,7 +174,10 @@ def send_bark(config: Dict[str, str], title: str, body: str) -> bool:
     )
     try:
         with urlopen(request, timeout=float(config.get("BARK_TIMEOUT", "8"))) as response:
-            payload = response.read()
+            payload = response.read(MAX_BARK_RESPONSE_BYTES + 1)
+        if len(payload) > MAX_BARK_RESPONSE_BYTES:
+            log_error("Bark delivery failed: response too large")
+            return False
         try:
             result = json.loads(payload.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
@@ -181,7 +186,7 @@ def send_bark(config: Dict[str, str], title: str, body: str) -> bool:
             log_error("Bark delivery failed: response rejected")
             return False
         return True
-    except (OSError, URLError, ValueError) as error:
+    except (OSError, URLError, HTTPException, ValueError) as error:
         log_error("Bark delivery failed: {}".format(type(error).__name__))
         return False
 
