@@ -37,6 +37,49 @@ class BarkNotifyTests(unittest.TestCase):
         send_bark.assert_called_once()
         run_previous.assert_called_once_with(self.config, payload)
 
+    def test_send_bark_reports_api_rejection(self):
+        response = mock.MagicMock()
+        response.__enter__.return_value.read.return_value = (
+            b'{"code":400,"message":"invalid"}'
+        )
+        with (
+            mock.patch.object(bark_notify, "urlopen", return_value=response),
+            mock.patch.object(bark_notify, "log_error") as log_error,
+        ):
+            delivered = bark_notify.send_bark(self.config, "title", "body")
+
+        self.assertFalse(delivered)
+        log_error.assert_called_once_with("Bark delivery failed: response rejected")
+
+    def test_send_bark_accepts_success_response(self):
+        response = mock.MagicMock()
+        response.__enter__.return_value.read.return_value = (
+            b'{"code":200,"message":"success"}'
+        )
+        with mock.patch.object(bark_notify, "urlopen", return_value=response):
+            self.assertTrue(bark_notify.send_bark(self.config, "title", "body"))
+
+    def test_explicit_test_delivery_failure_returns_nonzero(self):
+        notification = dict(self.completion, **{"codexnotes-test": True})
+        payload = json.dumps(notification, ensure_ascii=False)
+        with (
+            mock.patch.object(bark_notify, "read_config", return_value=self.config),
+            mock.patch.object(bark_notify, "is_user_task", return_value=True),
+            mock.patch.object(bark_notify, "send_bark", return_value=False),
+            mock.patch.object(bark_notify, "run_previous_notifier"),
+        ):
+            self.assertEqual(bark_notify.main([payload]), 1)
+
+    def test_regular_delivery_failure_remains_nonfatal(self):
+        payload = json.dumps(self.completion, ensure_ascii=False)
+        with (
+            mock.patch.object(bark_notify, "read_config", return_value=self.config),
+            mock.patch.object(bark_notify, "is_user_task", return_value=True),
+            mock.patch.object(bark_notify, "send_bark", return_value=False),
+            mock.patch.object(bark_notify, "run_previous_notifier"),
+        ):
+            self.assertEqual(bark_notify.main([payload]), 0)
+
     def test_non_completion_does_not_send_bark(self):
         payload = json.dumps(
             {"type": "approval-requested", "cwd": "/tmp/demo"},

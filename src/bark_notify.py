@@ -165,16 +165,25 @@ def log_error(message: str) -> None:
         pass
 
 
-def send_bark(config: Dict[str, str], title: str, body: str) -> None:
+def send_bark(config: Dict[str, str], title: str, body: str) -> bool:
     request = Request(
         build_bark_url(config, title, body),
         headers={"User-Agent": "Codex-Bark-Notifier/1.0"},
     )
     try:
         with urlopen(request, timeout=float(config.get("BARK_TIMEOUT", "8"))) as response:
-            response.read(1)
+            payload = response.read()
+        try:
+            result = json.loads(payload.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            result = None
+        if isinstance(result, dict) and result.get("code") not in (None, 200):
+            log_error("Bark delivery failed: response rejected")
+            return False
+        return True
     except (OSError, URLError, ValueError) as error:
         log_error("Bark delivery failed: {}".format(type(error).__name__))
+        return False
 
 
 def _references_this_script(command: List[str]) -> bool:
@@ -222,6 +231,7 @@ def main(arguments: List[str]) -> int:
     if found is None:
         return 0
     notification, raw_payload = found
+    test_delivery_failed = False
     try:
         config = read_config()
         if (
@@ -230,11 +240,15 @@ def main(arguments: List[str]) -> int:
             and config.get("BARK_BASE_URL")
         ):
             title, body = build_message(notification, config)
-            send_bark(config, title, body)
+            delivered = send_bark(config, title, body)
+            test_delivery_failed = (
+                notification.get("codexnotes-test") is True and not delivered
+            )
         run_previous_notifier(config, raw_payload)
     except (OSError, KeyError, ValueError) as error:
         log_error("Notifier setup failed: {}".format(type(error).__name__))
-    return 0
+        test_delivery_failed = notification.get("codexnotes-test") is True
+    return 1 if test_delivery_failed else 0
 
 
 if __name__ == "__main__":
