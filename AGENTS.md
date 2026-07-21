@@ -20,11 +20,43 @@ This repository installs one user-level Codex `notify` integration that sends ro
 
 For a first install, obtain the Bark device URL only through one of these channels:
 
-1. Hidden interactive prompt from `install.py`.
+1. Hidden interactive prompt from `bootstrap.py` or `install.py`.
 2. A human-provided `BARK_BASE_URL` environment variable.
-3. Explicit `--bark-base-url` input when the human accepts command-history/process-list exposure.
+3. A human-provided raw key in the `BARK_KEY` environment variable when using `bootstrap.py`.
+4. Explicit `--bark-base-url` input when the human accepts command-history/process-list exposure.
 
 Do not search the repository, shell history, session logs, or another machine for the key. An existing local `~/.codex/bark-notify.conf` may be reused by `install.py` for an idempotent upgrade. Never relay its value in a response.
+
+## One-click agent procedure
+
+When a human provides this repository URL, a Bark key or device URL, and explicitly asks for the one-click installation, that single request authorizes all of the following actions:
+
+1. Clone or fast-forward this repository in a temporary or agent-managed directory.
+2. Select Python 3.9 or newer for the current platform.
+3. Run `bootstrap.py --send-test` with the human value supplied only through the child process environment.
+4. Install into the resolved Codex home, verify offline, and request exactly one live test push.
+
+Use `BARK_KEY` for a raw key or `BARK_BASE_URL` for a complete device URL. Remove the process-scoped value immediately after the bootstrap command exits. Do not place the value in a command argument, repository file, generated plan, response, log, or commit.
+
+Do not repeat design, installation, secret-handling, or test-push confirmation after the human makes the explicit one-click request. Ask a new question only when an externally changed notification chain requires explicit `--repair` authorization or when an external blocker prevents progress. Never infer `--repair` from the one-click request.
+
+On success, report the resolved Codex home and tell the human to fully restart Codex. Do not restart Codex during the active task, and do not promise that a task started before installation will emit a completion push.
+
+Windows agents use a process-scoped environment value and always clear it:
+
+```powershell
+$env:BARK_KEY = $humanProvidedKey
+try { python bootstrap.py --send-test } finally { Remove-Item Env:BARK_KEY -ErrorAction SilentlyContinue }
+```
+
+macOS agents use the equivalent child-process environment without writing the value to shell history:
+
+```bash
+BARK_KEY="$human_provided_key" python3 bootstrap.py --send-test
+unset human_provided_key
+```
+
+The variables in these examples are placeholders for values already supplied directly by the human. Agents must not print them while preparing the environment.
 
 ## macOS procedure
 
@@ -76,6 +108,7 @@ py -3 uninstall.py
 
 ## Implementation map
 
+- `bootstrap.py`: raw-key normalization and one-click install, offline verification, optional test delivery, and restart handoff.
 - `src/bark_notify.py`: payload parsing, subagent suppression, message construction, Bark delivery, and previous-notifier dispatch.
 - `install.py`: constrained TOML `notify` parsing, backup, atomic install, native/previous notifier composition, private config, and state recording.
 - `uninstall.py`: exact previous assignment restoration with changed-config protection.
@@ -91,7 +124,7 @@ Run from the repository root:
 
 ```bash
 python3 -m unittest discover -s tests -v
-python3 -m py_compile install.py uninstall.py verify.py src/bark_notify.py
+python3 -m py_compile bootstrap.py install.py uninstall.py verify.py src/bark_notify.py
 git diff --check
 ```
 

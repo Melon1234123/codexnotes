@@ -14,10 +14,43 @@
 ## 先准备
 
 1. 在手机上安装 Bark，并确认 Bark 自己的测试通知可以收到。
-2. 准备 Bark 设备 URL，格式类似 `https://api.day.app/<YOUR_KEY>`。
+2. 准备 Bark Key；手工安装时也可以使用完整设备 URL，格式类似 `https://api.day.app/<YOUR_KEY>`。
 3. 在电脑上安装 Git 和 Python 3.9 或更高版本。
 
 真实 Bark URL 不写入仓库。首次安装时脚本会隐藏输入，并只保存到当前电脑的 `~/.codex/bark-notify.conf`。同一个 URL 可以在 Mac 和 Windows 上重复使用，但两台电脑必须分别安装一次。
+
+## 交给 Codex 一站式安装
+
+把下面内容发给 Codex，并替换 Bark Key：
+
+```text
+请按仓库的一站式流程安装 Codex Bark 通知。
+仓库：https://github.com/Melon1234123/codexnotes.git
+Bark Key：在这里粘贴你的 Key
+使用仓库默认配置，完成安装、离线验证并发送一次测试通知；除非失败或需要 repair，不要再向我确认。
+```
+
+这段请求授权 Codex 克隆或更新仓库、安装、离线验证并发送一次测试通知。成功后需要完全退出并重新打开 Codex；安装前已经启动的任务不会补发完成通知。
+
+已经进入仓库时，也可以直接运行总入口。它会隐藏输入 Bark Key 或完整设备 URL，先离线验证，通过后才发送一次测试通知。
+
+macOS：
+
+```bash
+python3 bootstrap.py --send-test
+```
+
+Windows：
+
+```powershell
+py -3 bootstrap.py --send-test
+```
+
+如果 Windows 没有 `py`，但 `python --version` 为 3.9 或更高版本，使用：
+
+```powershell
+python bootstrap.py --send-test
+```
 
 ## macOS 安装
 
